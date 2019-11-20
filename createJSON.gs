@@ -16,8 +16,12 @@ function createJSONFile() {
     var prodSheetValues = prodSheet.getRange("A2:E" + longArrayProd).getValues();
     var sandSheetValues = sandSheet.getRange("A2:E" + longArraySand).getValues();
     //Marcar P o S
-    prodSheetValues.forEach(function(e){e[5] = "P"});
-    sandSheetValues.forEach(function(e){e[5] = "S"});
+    prodSheetValues.forEach(function(e) {
+        e[5] = "P"
+    });
+    sandSheetValues.forEach(function(e) {
+        e[5] = "S"
+    });
     var concatSheetValues = prodSheetValues.concat(sandSheetValues)
     //Agrupar por Cliente
     var groupedByClient = groupByVanillaJS(concatSheetValues, 0);
@@ -26,7 +30,7 @@ function createJSONFile() {
     var JSONCredentialsProd = getOrgsJSONCredentials(groupedByClient);
     JSONString += getJSONString(JSONCredentialsProd);
     createGoogleDriveTextFile(JSONString);
-    Logger.log('JSONString es %s',JSONString);
+    //Logger.log('JSONString es %s', JSONString);
 }
 
 function getJSONString(JSONCredentials) {
@@ -130,10 +134,36 @@ function groupByVanillaJS(arr, criteria) {
  * https://riptutorial.com/google-apps-script/example/22010/create-a-new-text-file-in-google-root-drive-folder
  */
 function createGoogleDriveTextFile(JSONString) {
-    var content, fileName, newFile; //Declare variable names
-
-    fileName = "Logins " + new Date().toString().slice(0, 15); //Create a new file name with date on end
+    var content, fileName, newFile, folder; //Declare variable names
+    fileName = "JSON Login Credentials - " + new Date().toString().slice(0, 24); //Create a new file name with date on end
     content = JSONString;
     var blob = Utilities.newBlob('').setDataFromString(content).setContentType("application/json").setName(fileName + ".json");
-    newFile = DriveApp.createFile(blob); //Create a new text file in the root folder
+    //Buscar carpeta
+    var folders = DriveApp.getFoldersByName("Logins SFDC JSON");
+  Logger.log(folders);
+    if (folders.hasNext()) {
+        folder = folders.next();
+        var folderId = folder.getId();
+        newFile = DriveApp.getFolderById(folderId).createFile(blob);
+    } else {
+        folder = DriveApp.createFolder("Logins SFDC JSON");
+        newFile = DriveApp.folder.createFile(blob);
+    }
+    sendEmail(fileName, newFile, folder);
 };
+
+function sendEmail(fileName, newFile, folder) {
+    MailApp.sendEmail({
+        to: Session.getActiveUser(),
+        subject: fileName,
+        htmlBody: "Encuentre el archivo en " + folder.getUrl() + "<br>" +
+            "Si desea sobreescribir las credenciales actuales debe eliminar la memoria de la extension usando <br> chrome.storage.sync.clear();location.reload(); <br>" +
+            "Ver Manually reset in settings (developer experience) <br> https://www.turnoffthelights.com/support/browser-extension/how-to-reset-the-chrome-extension-settings/",
+    });
+
+    var ui = SpreadsheetApp.getUi();
+    ui.alert(
+        "Correo electronico enviado. Verifique el correo con la ruta para acceder el archivo en su Drive"
+    );
+
+}
