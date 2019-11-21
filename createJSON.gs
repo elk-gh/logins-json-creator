@@ -1,5 +1,15 @@
 //chrome.storage.sync.clear();location.reload();
-function createJSONFile() {
+function createJSONFile(dataSet) {
+    //Agrupar por Cliente
+    var groupedByClient = groupByVanillaJS(dataSet, 0);
+    //Iterar para crear JSON
+    var JSONString = '';
+    var JSONCredentialsProd = getOrgsJSONCredentials(groupedByClient);
+    JSONString += getJSONString(JSONCredentialsProd);
+    createGoogleDriveTextFile(JSONString);
+}
+
+function processAllCredentialJSONFile() {
     //Obtener datos de Hojas Origen  Produccion
     var prodSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Produccion");
     var sandSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sandbox");
@@ -22,15 +32,40 @@ function createJSONFile() {
     sandSheetValues.forEach(function(e) {
         e[5] = "S"
     });
-    var concatSheetValues = prodSheetValues.concat(sandSheetValues)
-    //Agrupar por Cliente
-    var groupedByClient = groupByVanillaJS(concatSheetValues, 0);
-    //Iterar para crear JSON
-    var JSONString = '';
-    var JSONCredentialsProd = getOrgsJSONCredentials(groupedByClient);
-    JSONString += getJSONString(JSONCredentialsProd);
-    createGoogleDriveTextFile(JSONString);
-    //Logger.log('JSONString es %s', JSONString);
+    var concatSheetValues = prodSheetValues.concat(sandSheetValues);
+    createJSONFile(concatSheetValues);
+}
+
+function processSelectedCredentialJSONFile() {
+    //Determinar si es Sandbox o Produccion
+    var sheetName = SpreadsheetApp.getActiveSheet().getName();
+    var selectedData = SpreadsheetApp.getSelection().getActiveRange().getValues();
+    var selectedRange = SpreadsheetApp.getSelection().getActiveRange().getA1Notation();
+    var rangeInitialColumn = selectedRange.slice(0, 1);
+    var rangeInitialCell = selectedRange.slice(0, 2);
+    var rangeLastColumn = selectedRange.split(":")[1].slice(0, 1);
+    var ui = SpreadsheetApp.getUi();
+    if (rangeInitialCell == "A1") {
+        ui.alert(
+            "No puede incluir la celda A1"
+        );
+    } else if (rangeInitialColumn != "A" || rangeLastColumn != "E") {
+        ui.alert(
+            "Solo puede seleccionar rangos iniciando en la columna A y terminando en la E"
+        );
+    } else {
+        //Marcar P o S
+        if (sheetName.slice(0, 1) == "P") {
+            selectedData.forEach(function(e) {
+                e[5] = "P"
+            });
+        } else if (sheetName.slice(0, 1) == "S") {
+            selectedData.forEach(function(e) {
+                e[5] = "S"
+            });
+        }
+        createJSONFile(selectedData);
+    }
 }
 
 function getJSONString(JSONCredentials) {
@@ -56,7 +91,9 @@ function onOpen() {
     //These lines create the menu items and
     // tie them to functions we will write in Apps Script
     ui.createMenu("Logins")
-        .addItem("Crear JSON", "createJSONFile")
+        .addItem("Crear JSON Total", "processAllCredentialJSONFile")
+        .addSeparator()
+        .addItem("Crear JSON Selección", "processSelectedCredentialJSONFile")
         .addToUi();
 }
 
@@ -140,7 +177,7 @@ function createGoogleDriveTextFile(JSONString) {
     var blob = Utilities.newBlob('').setDataFromString(content).setContentType("application/json").setName(fileName + ".json");
     //Buscar carpeta
     var folders = DriveApp.getFoldersByName("Logins SFDC JSON");
-  Logger.log(folders);
+    Logger.log(folders);
     if (folders.hasNext()) {
         folder = folders.next();
         var folderId = folder.getId();
@@ -156,7 +193,7 @@ function sendEmail(fileName, newFile, folder) {
     MailApp.sendEmail({
         to: Session.getActiveUser(),
         subject: fileName,
-        htmlBody: "Encuentre el archivo en " + folder.getUrl() + "<br>" +
+        htmlBody: "Encuentre el archivo en " + newFile.getUrl() + "<br>" +
             "Si desea sobreescribir las credenciales actuales debe eliminar la memoria de la extension usando <br> chrome.storage.sync.clear();location.reload(); <br>" +
             "Ver Manually reset in settings (developer experience) <br> https://www.turnoffthelights.com/support/browser-extension/how-to-reset-the-chrome-extension-settings/",
     });
