@@ -1,7 +1,7 @@
 //chrome.storage.sync.clear();location.reload();
 function createJSONFile(dataSet) {
     //Agrupar por Cliente
-    var groupedByClient = groupByVanillaJS(dataSet, 0);
+    var groupedByClient = groupByVanillaJS(dataSet, 4);
     //Iterar para crear JSON
     var JSONString = '';
     var JSONCredentialsProd = getOrgsJSONCredentials(groupedByClient);
@@ -119,13 +119,13 @@ function getOrgsJSONCredentials(obj) {
             var endpoint = obj[a][i][5] == 'P' ? 'https://login.salesforce.com/' : 'https://test.salesforce.com/';
             var Id = obj[a][i][5] == 'P' ? 'Production' : 'Sandbox';
             var name = obj[a][i][5] == 'P' ? 'Produccion' : 'Sandbox';
-            var descripcion = obj[a][i][5] == 'S' ? obj[a][i][4] : '';
+            var descripcion = obj[a][i][4];
             /*Logger.log(obj[a][i][0]);
             Logger.log(obj[a][i][1]);
             Logger.log(obj[a][i][2]);
             Logger.log(obj[a][i][3]);*/
             JSONString += '{';
-            JSONString += '"Name": "' + obj[a][i][0] + ' ' + name + ' ' + descripcion + '",';
+            JSONString += '"Name": "' + obj[a][i][0] + ' ' + name + ' ' + '",';
             JSONString += '"SfName": "' + obj[a][i][1] + '",';
             JSONString += '"Password": "' + obj[a][i][2] + '",';
             JSONString += '"Token": "' + obj[a][i][3] + '",';
