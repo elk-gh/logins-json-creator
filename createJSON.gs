@@ -9,30 +9,39 @@ function createJSONFile(dataSet) {
     createGoogleDriveTextFile(JSONString);
 }
 
-function processAllCredentialJSONFile() {
-    //Obtener datos de Hojas Origen  Produccion
-    var prodSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Produccion");
+function processSandboxCredentialJSONFile() {
+    //Obtener datos de Hojas Origen
     var sandSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sandbox");
+    //Obtener Longitud Array
+    var firstColumnSand = sandSheet.getRange("A2:A").getValues().filter(function(item) {
+        return item != ""
+    });
+    var longArraySand = firstColumnSand.length + 1;
+    //Crear JSON
+    var sandSheetValues = sandSheet.getRange("A2:E" + longArraySand).getValues();
+    //Marcar P o S
+    sandSheetValues.forEach(function(e) {
+        e[5] = "S"
+    });
+    var concatSheetValues = sandSheetValues;
+    createJSONFile(concatSheetValues);
+}
+
+function processProductionCredentialJSONFile() {
+    //Obtener datos de Hojas Origen  Produccion
+    var prodSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Salesforce");
     //Obetner Longitud Array
     var firstColumnProd = prodSheet.getRange("A2:A").getValues().filter(function(item) {
         return item != ""
     });
-    var firstColumnSand = sandSheet.getRange("A2:A").getValues().filter(function(item) {
-        return item != ""
-    });
     var longArrayProd = firstColumnProd.length + 1;
-    var longArraySand = firstColumnSand.length + 1;
     //Crear JSON
     var prodSheetValues = prodSheet.getRange("A2:E" + longArrayProd).getValues();
-    var sandSheetValues = sandSheet.getRange("A2:E" + longArraySand).getValues();
     //Marcar P o S
     prodSheetValues.forEach(function(e) {
         e[5] = "P"
     });
-    sandSheetValues.forEach(function(e) {
-        e[5] = "S"
-    });
-    var concatSheetValues = prodSheetValues.concat(sandSheetValues);
+    var concatSheetValues = prodSheetValues;
     createJSONFile(concatSheetValues);
 }
 
@@ -41,11 +50,11 @@ function processSelectedCredentialJSONFile() {
     var sheetName = SpreadsheetApp.getActiveSheet().getName();
     var selectedData = SpreadsheetApp.getSelection().getActiveRange().getValues();
     var selectedRange = SpreadsheetApp.getSelection().getActiveRange().getA1Notation();
-    var rangeInitialColumn = selectedRange.slice(0, 1);
-    var rangeInitialCell = selectedRange.slice(0, 2);
+    var rangeInitialColumn = selectedRange.split(":")[0].slice(0, 1);
+    var rangeInitialCell = selectedRange.split(":")[0];
     var rangeLastColumn = selectedRange.split(":")[1].slice(0, 1);
     var ui = SpreadsheetApp.getUi();
-    if (rangeInitialCell == "A1") {
+    if (rangeInitialCell.slice(0, 2) == "A1" && rangeInitialCell.length == 2) {
         ui.alert(
             "No puede incluir la celda A1"
         );
@@ -91,7 +100,8 @@ function onOpen() {
     //These lines create the menu items and
     // tie them to functions we will write in Apps Script
     ui.createMenu("Logins")
-        .addItem("Crear JSON Total", "processAllCredentialJSONFile")
+        .addItem("Crear JSON Sandbox", "processSandboxCredentialJSONFile")
+        .addItem("Crear JSON Produccion", "processProductionCredentialJSONFile")
         .addSeparator()
         .addItem("Crear JSON Selección", "processSelectedCredentialJSONFile")
         .addToUi();
@@ -115,11 +125,12 @@ function getOrgsJSONCredentials(obj) {
             Logger.log(obj[a][i][2]);
             Logger.log(obj[a][i][3]);*/
             JSONString += '{';
-            JSONString += '"Name": "' + obj[a][i][0] + ' ' + name + '",';
+            JSONString += '"Name": "' + obj[a][i][0] + ' ' + name + ' ' + descripcion + '",';
             JSONString += '"SfName": "' + obj[a][i][1] + '",';
             JSONString += '"Password": "' + obj[a][i][2] + '",';
-            JSONString += '"GroupId": "' + obj[a][i][0] + ' ' + name + '",';
-            JSONString += '"Description": "' + obj[a][i][0] + ' ' + descripcion + '",';
+            JSONString += '"Token": "' + obj[a][i][3] + '",';
+            //JSONString += '"GroupId": "' + obj[a][i][0] + ' ' + name + '",';
+            //JSONString += '"Description": "' + obj[a][i][0] + ' ' + descripcion + '",';
             JSONString += '"orgId": "",';
             JSONString += '"Type": {';
             JSONString += '"Id": "' + Id + '",';
@@ -177,7 +188,6 @@ function createGoogleDriveTextFile(JSONString) {
     var blob = Utilities.newBlob('').setDataFromString(content).setContentType("application/json").setName(fileName + ".json");
     //Buscar carpeta
     var folders = DriveApp.getFoldersByName("Logins SFDC JSON");
-    Logger.log(folders);
     if (folders.hasNext()) {
         folder = folders.next();
         var folderId = folder.getId();
@@ -204,3 +214,37 @@ function sendEmail(fileName, newFile, folder) {
     );
 
 }
+
+/*Deprecated
+ * No se pueden agregar tantos datos a la extension
+ */
+function processAllCredentialJSONFile() {
+    //Obtener datos de Hojas Origen  Produccion
+    var prodSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Produccion");
+    var sandSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sandbox");
+    //Obetner Longitud Array
+    var firstColumnProd = prodSheet.getRange("A2:A").getValues().filter(function(item) {
+        return item != ""
+    });
+    var firstColumnSand = sandSheet.getRange("H2:H").getValues().filter(function(item) {
+        return item == "1"
+    });
+    var longArrayProd = firstColumnProd.length + 1;
+    var longArraySand = firstColumnSand.length + 1;
+    Logger.log(longArraySand);
+    var limitArrayLength = 50;
+    longArraySand > limitArrayLength ? limitArrayLength : longArraySand;
+    //Crear JSON
+    var prodSheetValues = prodSheet.getRange("A2:E" + longArrayProd).getValues();
+    var sandSheetValues = sandSheet.getRange("A2:E" + longArraySand).getValues();
+    //Marcar P o S
+    prodSheetValues.forEach(function(e) {
+        e[5] = "P"
+    });
+    sandSheetValues.forEach(function(e) {
+        e[5] = "S"
+    });
+    var concatSheetValues = prodSheetValues.concat(sandSheetValues);
+    createJSONFile(concatSheetValues);
+}
+
